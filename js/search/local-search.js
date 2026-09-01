@@ -15,39 +15,31 @@ class LocalSearch {
     this.top_n_per_article = top_n_per_article
     this.isfetched = false
     this.datas = null
-    this._unescapeDiv = unescape ? document.createElement('div') : null
-    this._processedKeywords = null
-  }
-
-  _processKeywords (keywords) {
-    if (this._processedKeywords) return this._processedKeywords
-    this._processedKeywords = keywords.map(word => {
-      if (this.unescape) {
-        this._unescapeDiv.innerText = word
-        return this._unescapeDiv.innerHTML
-      }
-      return word
-    })
-    return this._processedKeywords
   }
 
   getIndexByWord (words, text, caseSensitive = false) {
     const index = []
     const included = new Set()
-    const processedWords = this._processKeywords(words)
 
     if (!caseSensitive) {
       text = text.toLowerCase()
     }
-    processedWords.forEach((word, i) => {
+    words.forEach(word => {
+      if (this.unescape) {
+        const div = document.createElement('div')
+        div.innerText = word
+        word = div.innerHTML
+      }
       const wordLen = word.length
       if (wordLen === 0) return
       let startPosition = 0
       let position = -1
-      const searchWord = caseSensitive ? word : word.toLowerCase()
-      while ((position = text.indexOf(searchWord, startPosition)) > -1) {
+      if (!caseSensitive) {
+        word = word.toLowerCase()
+      }
+      while ((position = text.indexOf(word, startPosition)) > -1) {
         index.push({ position, word })
-        included.add(words[i])
+        included.add(word)
         startPosition = position + wordLen
       }
     })
@@ -98,30 +90,29 @@ class LocalSearch {
 
   // Highlight title and content
   highlightKeyword (val, slice) {
-    const parts = []
+    let result = ''
     let index = slice.start
     for (const { position, length } of slice.hits) {
-      parts.push(val.substring(index, position))
+      result += val.substring(index, position)
       index = position + length
-      parts.push(`<mark class="search-keyword">${val.substring(position, position + length)}</mark>`)
+      result += `<mark class="search-keyword">${val.substr(position, length)}</mark>`
     }
-    parts.push(val.substring(index, slice.end))
-    return parts.join('')
+    result += val.substring(index, slice.end)
+    return result
   }
 
   getResultItems (keywords) {
     const resultItems = []
-    this._processedKeywords = null
-    // Compute highlight param once instead of per-article
-    const highlightParam = keywords.join(' ')
-    this.datas.forEach(({ title, content, url }) => {
+    this.datas.forEach(({ title, content, url, tags }) => {
       // The number of different keywords included in the article.
+      const [indexOfTags, keysOfTags] = this.getIndexByWord(keywords, (tags || []).join(' '))
       const [indexOfTitle, keysOfTitle] = this.getIndexByWord(keywords, title)
       const [indexOfContent, keysOfContent] = this.getIndexByWord(keywords, content)
-      const includedCount = new Set([...keysOfTitle, ...keysOfContent]).size
+      const includedCount = new Set([...keysOfTags, ...keysOfTitle, ...keysOfContent]).size
 
       // Show search results
-      const hitCount = indexOfTitle.length + indexOfContent.length
+      const tagHit = indexOfTags.length
+      const hitCount = tagHit + indexOfTitle.length + indexOfContent.length
       if (hitCount === 0) return
 
       const slicesOfTitle = []
@@ -158,7 +149,7 @@ class LocalSearch {
       let resultItem = ''
 
       url = new URL(url, location.origin)
-      url.searchParams.append('highlight', highlightParam)
+      url.searchParams.append('highlight', keywords.join(' '))
 
       if (slicesOfTitle.length !== 0) {
         resultItem += `<li class="local-search-hit-item"><a href="${url.href}"><span class="search-result-title">${this.highlightKeyword(title, slicesOfTitle[0])}</span>`
@@ -175,7 +166,8 @@ class LocalSearch {
         item: resultItem,
         id: resultItems.length,
         hitCount,
-        includedCount
+        includedCount,
+        tagHit
       })
     })
     return resultItems
@@ -184,10 +176,7 @@ class LocalSearch {
   fetchData () {
     const isXml = !this.path.endsWith('json')
     fetch(this.path)
-      .then(response => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-        return response.text()
-      })
+      .then(response => response.text())
       .then(res => {
         // Get the contents from search data
         this.isfetched = true
@@ -195,7 +184,8 @@ class LocalSearch {
           ? [...new DOMParser().parseFromString(res, 'text/xml').querySelectorAll('entry')].map(element => ({
               title: element.querySelector('title').textContent,
               content: element.querySelector('content').textContent,
-              url: element.querySelector('url').textContent
+              url: element.querySelector('url').textContent,
+              tags: [...element.querySelectorAll('tags tag')].map(t => t.textContent)
             }))
           : JSON.parse(res)
         // Only match articles with non-empty titles
@@ -206,12 +196,6 @@ class LocalSearch {
           return data
         })
         // Remove loading animation
-        window.dispatchEvent(new Event('search:loaded'))
-      })
-      .catch(error => {
-        console.error('Local search data fetch failed:', error)
-        this.isfetched = true
-        this.datas = []
         window.dispatchEvent(new Event('search:loaded'))
       })
   }
@@ -226,7 +210,7 @@ class LocalSearch {
       index = position + length
       const mark = document.createElement('mark')
       mark.className = className
-      mark.appendChild(document.createTextNode(val.substring(position, position + length)))
+      mark.appendChild(document.createTextNode(val.substr(position, length)))
       children.push(text, mark)
     }
     node.nodeValue = val.substring(index, slice.end)
@@ -255,7 +239,7 @@ class LocalSearch {
 }
 
 window.addEventListener('load', () => {
-  // Search
+// Search
   const { path, top_n_per_article, unescape, languages, pagination } = GLOBAL_CONFIG.localSearch
   const enablePagination = pagination && pagination.enable
   const localSearch = new LocalSearch({
@@ -264,14 +248,9 @@ window.addEventListener('load', () => {
     unescape
   })
 
-  const $input = document.querySelector('.local-search-input input')
-  const $statsItem = document.getElementById('local-search-stats')
+  const input = document.querySelector('.local-search-input input')
+  const statsItem = document.getElementById('local-search-stats')
   const $loadingStatus = document.getElementById('loading-status')
-  const $searchMask = document.getElementById('search-mask')
-  const $searchDialog = document.querySelector('#local-search .search-dialog')
-  const $results = document.getElementById('local-search-results')
-  const $pagination = document.getElementById('local-search-pagination')
-  const $paginationList = document.querySelector('#local-search-pagination .ais-Pagination-list')
   const isXml = !path.endsWith('json')
 
   // Pagination variables (only initialize if pagination is enabled)
@@ -281,17 +260,30 @@ window.addEventListener('load', () => {
   let currentResultItems = []
 
   if (!enablePagination) {
+    // If pagination is disabled, we don't need these variables
     currentPage = undefined
     currentResultItems = undefined
   }
 
+  // Cache frequently used elements
+  const elements = {
+    get pagination () { return document.getElementById('local-search-pagination') },
+    get paginationList () { return document.querySelector('#local-search-pagination .ais-Pagination-list') }
+  }
+
   // Show/hide search results area
   const toggleResultsVisibility = hasResults => {
-    $pagination.style.display = (hasResults && enablePagination) ? '' : 'none'
+    if (enablePagination) {
+      elements.pagination.style.display = hasResults ? '' : 'none'
+    } else {
+      elements.pagination.style.display = 'none'
+    }
   }
 
   // Render search results for current page
   const renderResults = (searchText, resultItems) => {
+    const container = document.getElementById('local-search-results')
+
     // Determine items to display based on pagination mode
     const itemsToDisplay = enablePagination
       ? currentResultItems.slice(currentPage * hitsPerPage, (currentPage + 1) * hitsPerPage)
@@ -315,12 +307,12 @@ window.addEventListener('load', () => {
       )
     })
 
-    $results.innerHTML = `<ol class="search-result-list">${numberedItems.join('')}</ol>`
+    container.innerHTML = `<ol class="search-result-list">${numberedItems.join('')}</ol>`
 
     // Update stats
     const displayCount = enablePagination ? currentResultItems.length : resultItems.length
     const stats = languages.hits_stats.replace(/\$\{hits}/, displayCount)
-    $statsItem.innerHTML = `<hr><div class="search-result-stats">${stats}</div>`
+    statsItem.innerHTML = `<hr><div class="search-result-stats">${stats}</div>`
 
     // Handle pagination
     if (enablePagination) {
@@ -331,16 +323,18 @@ window.addEventListener('load', () => {
     const hasResults = resultItems.length > 0
     toggleResultsVisibility(hasResults)
 
-    window.pjax && window.pjax.refresh($results)
+    window.pjax && window.pjax.refresh(container)
   }
 
   // Render pagination
-  const renderPagination = (page, nbPages) => {
+  const renderPagination = (page, nbPages, query) => {
     if (nbPages <= 1) {
-      $pagination.style.display = 'none'
-      $paginationList.innerHTML = ''
+      elements.pagination.style.display = 'none'
+      elements.paginationList.innerHTML = ''
       return
     }
+
+    elements.pagination.style.display = 'block'
 
     const isFirstPage = page === 0
     const isLastPage = page === nbPages - 1
@@ -356,49 +350,77 @@ window.addEventListener('load', () => {
       startPage = Math.max(0, endPage - maxVisiblePages + 1)
     }
 
-    const parts = []
+    let pagesHTML = ''
 
     // Only add ellipsis and first page when there are many pages
     if (nbPages > maxVisiblePages && startPage > 0) {
-      parts.push('<li class="ais-Pagination-item ais-Pagination-item--page"><a class="ais-Pagination-link" aria-label="Page 1" href="#" data-page="0">1</a></li>')
+      pagesHTML += `
+        <li class="ais-Pagination-item ais-Pagination-item--page">
+          <a class="ais-Pagination-link" aria-label="Page 1" href="#" data-page="0">1</a>
+        </li>`
       if (startPage > 1) {
-        parts.push('<li class="ais-Pagination-item ais-Pagination-item--ellipsis"><span class="ais-Pagination-link">...</span></li>')
+        pagesHTML += `
+          <li class="ais-Pagination-item ais-Pagination-item--ellipsis">
+            <span class="ais-Pagination-link">...</span>
+          </li>`
       }
     }
 
     // Add middle page numbers
     for (let i = startPage; i <= endPage; i++) {
-      if (i === page) {
-        parts.push(`<li class="ais-Pagination-item ais-Pagination-item--page ais-Pagination-item--selected"><span class="ais-Pagination-link" aria-label="Page ${i + 1}">${i + 1}</span></li>`)
+      const isSelected = i === page
+      if (isSelected) {
+        pagesHTML += `
+          <li class="ais-Pagination-item ais-Pagination-item--page ais-Pagination-item--selected">
+            <span class="ais-Pagination-link" aria-label="Page ${i + 1}">${i + 1}</span>
+          </li>`
       } else {
-        parts.push(`<li class="ais-Pagination-item ais-Pagination-item--page"><a class="ais-Pagination-link" aria-label="Page ${i + 1}" href="#" data-page="${i}">${i + 1}</a></li>`)
+        pagesHTML += `
+          <li class="ais-Pagination-item ais-Pagination-item--page">
+            <a class="ais-Pagination-link" aria-label="Page ${i + 1}" href="#" data-page="${i}">${i + 1}</a>
+          </li>`
       }
     }
 
     // Only add ellipsis and last page when there are many pages
     if (nbPages > maxVisiblePages && endPage < nbPages - 1) {
       if (endPage < nbPages - 2) {
-        parts.push('<li class="ais-Pagination-item ais-Pagination-item--ellipsis"><span class="ais-Pagination-link">...</span></li>')
+        pagesHTML += `
+          <li class="ais-Pagination-item ais-Pagination-item--ellipsis">
+            <span class="ais-Pagination-link">...</span>
+          </li>`
       }
-      parts.push(`<li class="ais-Pagination-item ais-Pagination-item--page"><a class="ais-Pagination-link" aria-label="Page ${nbPages}" href="#" data-page="${nbPages - 1}">${nbPages}</a></li>`)
+      pagesHTML += `
+        <li class="ais-Pagination-item ais-Pagination-item--page">
+          <a class="ais-Pagination-link" aria-label="Page ${nbPages}" href="#" data-page="${nbPages - 1}">${nbPages}</a>
+        </li>`
     }
 
-    // Build prev/next links
-    const prevLink = isFirstPage
-      ? '<span class="ais-Pagination-link ais-Pagination-link--disabled" aria-label="Previous Page"><i class="fas fa-angle-left"></i></span>'
-      : `<a class="ais-Pagination-link" aria-label="Previous Page" href="#" data-page="${page - 1}"><i class="fas fa-angle-left"></i></a>`
-    const nextLink = isLastPage
-      ? '<span class="ais-Pagination-link ais-Pagination-link--disabled" aria-label="Next Page"><i class="fas fa-angle-right"></i></span>'
-      : `<a class="ais-Pagination-link" aria-label="Next Page" href="#" data-page="${page + 1}"><i class="fas fa-angle-right"></i></a>`
-
-    $paginationList.innerHTML = `<li class="ais-Pagination-item ais-Pagination-item--previousPage ${isFirstPage ? 'ais-Pagination-item--disabled' : ''}">${prevLink}</li>${parts.join('')}<li class="ais-Pagination-item ais-Pagination-item--nextPage ${isLastPage ? 'ais-Pagination-item--disabled' : ''}">${nextLink}</li>`
-    $pagination.style.display = ''
+    if (nbPages > 1) {
+      elements.paginationList.innerHTML = `
+            <li class="ais-Pagination-item ais-Pagination-item--previousPage ${isFirstPage ? 'ais-Pagination-item--disabled' : ''}">
+              ${isFirstPage
+                ? '<span class="ais-Pagination-link ais-Pagination-link--disabled" aria-label="Previous Page"><i class="fas fa-angle-left"></i></span>'
+                : `<a class="ais-Pagination-link" aria-label="Previous Page" href="#" data-page="${page - 1}"><i class="fas fa-angle-left"></i></a>`
+              }
+            </li>
+            ${pagesHTML}
+            <li class="ais-Pagination-item ais-Pagination-item--nextPage ${isLastPage ? 'ais-Pagination-item--disabled' : ''}">
+              ${isLastPage
+                ? '<span class="ais-Pagination-link ais-Pagination-link--disabled" aria-label="Next Page"><i class="fas fa-angle-right"></i></span>'
+                : `<a class="ais-Pagination-link" aria-label="Next Page" href="#" data-page="${page + 1}"><i class="fas fa-angle-right"></i></a>`
+              }
+            </li>`
+    } else {
+      elements.pagination.style.display = 'none'
+    }
   }
 
   // Clear search results and stats
   const clearSearchResults = () => {
-    $results.textContent = ''
-    $statsItem.textContent = ''
+    const container = document.getElementById('local-search-results')
+    container.textContent = ''
+    statsItem.textContent = ''
     toggleResultsVisibility(false)
     if (enablePagination) {
       currentResultItems = []
@@ -408,11 +430,12 @@ window.addEventListener('load', () => {
 
   // Show no results message
   const showNoResults = searchText => {
-    $results.textContent = ''
+    const container = document.getElementById('local-search-results')
+    container.textContent = ''
     const statsDiv = document.createElement('div')
     statsDiv.className = 'search-result-stats'
     statsDiv.textContent = languages.hits_empty.replace(/\$\{query}/, searchText)
-    $statsItem.innerHTML = statsDiv.outerHTML
+    statsItem.innerHTML = statsDiv.outerHTML
     toggleResultsVisibility(false)
     if (enablePagination) {
       currentResultItems = []
@@ -422,7 +445,7 @@ window.addEventListener('load', () => {
 
   const inputEventFunction = () => {
     if (!localSearch.isfetched) return
-    let searchText = $input.value.trim().toLowerCase()
+    let searchText = input.value.trim().toLowerCase()
     isXml && (searchText = searchText.replace(/</g, '&lt;').replace(/>/g, '&gt;'))
 
     if (searchText !== '') $loadingStatus.hidden = false
@@ -439,9 +462,11 @@ window.addEventListener('load', () => {
     } else if (resultItems.length === 0) {
       showNoResults(searchText)
     } else {
-      // Sort results by relevance
+      // Sort results by relevance (tag hits first, then coverage, then total hits)
       resultItems.sort((left, right) => {
-        if (left.includedCount !== right.includedCount) {
+        if (left.tagHit !== right.tagHit) {
+          return right.tagHit - left.tagHit
+        } else if (left.includedCount !== right.includedCount) {
           return right.includedCount - left.includedCount
         } else if (left.hitCount !== right.hitCount) {
           return right.hitCount - left.hitCount
@@ -459,37 +484,14 @@ window.addEventListener('load', () => {
     $loadingStatus.hidden = true
   }
 
-  // Debounced input handler
-  let searchTimeout
-  const debouncedInputEvent = () => {
-    clearTimeout(searchTimeout)
-    // Empty input: clear results immediately without debounce delay
-    if (!$input.value.trim()) {
-      inputEventFunction()
-      return
-    }
-    searchTimeout = setTimeout(inputEventFunction, 200)
-  }
-
   let loadFlag = false
+  const $searchMask = document.getElementById('search-mask')
+  const $searchDialog = document.querySelector('#local-search .search-dialog')
 
+  // fix safari
   const fixSafariHeight = () => {
     if (window.innerWidth < 768) {
       $searchDialog.style.setProperty('--search-height', window.innerHeight + 'px')
-    }
-  }
-
-  // Debounced resize to avoid layout thrashing
-  let resizeTimer
-  const onResize = () => {
-    clearTimeout(resizeTimer)
-    resizeTimer = setTimeout(fixSafariHeight, 150)
-  }
-
-  const handleEscape = event => {
-    if (event.code === 'Escape') {
-      closeSearch()
-      document.removeEventListener('keydown', handleEscape)
     }
   }
 
@@ -497,25 +499,29 @@ window.addEventListener('load', () => {
     btf.overflowPaddingR.add()
     btf.animateIn($searchMask, 'to_show 0.5s')
     btf.animateIn($searchDialog, 'titleScale 0.5s')
-    setTimeout(() => { $input.focus() }, 300)
+    setTimeout(() => { input.focus() }, 300)
     if (!loadFlag) {
       !localSearch.isfetched && localSearch.fetchData()
-      $input.addEventListener('input', debouncedInputEvent)
+      input.addEventListener('input', inputEventFunction)
       loadFlag = true
     }
     // shortcut: ESC
-    document.addEventListener('keydown', handleEscape)
+    document.addEventListener('keydown', function f (event) {
+      if (event.code === 'Escape') {
+        closeSearch()
+        document.removeEventListener('keydown', f)
+      }
+    })
 
     fixSafariHeight()
-    window.addEventListener('resize', onResize)
+    window.addEventListener('resize', fixSafariHeight)
   }
 
   const closeSearch = () => {
     btf.overflowPaddingR.remove()
     btf.animateOut($searchDialog, 'search_close .5s')
     btf.animateOut($searchMask, 'to_hide 0.5s')
-    document.removeEventListener('keydown', handleEscape)
-    window.removeEventListener('resize', onResize)
+    window.removeEventListener('resize', fixSafariHeight)
   }
 
   const searchClickFn = () => {
@@ -532,14 +538,14 @@ window.addEventListener('load', () => {
 
     // Pagination event delegation - only add if pagination is enabled
     if (enablePagination) {
-      $pagination.addEventListener('click', e => {
+      elements.pagination.addEventListener('click', e => {
         e.preventDefault()
         const link = e.target.closest('a[data-page]')
         if (link) {
           const page = parseInt(link.dataset.page, 10)
           if (!isNaN(page) && currentResultItems.length > 0) {
             currentPage = page
-            renderResults($input.value.trim().toLowerCase(), currentResultItems)
+            renderResults(input.value.trim().toLowerCase(), currentResultItems)
           }
         }
       })

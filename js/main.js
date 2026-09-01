@@ -2,25 +2,18 @@ document.addEventListener('DOMContentLoaded', () => {
   let headerContentWidth, $nav
   let mobileSidebarOpen = false
 
-  // rightsideScrollPercent
-  let goUpElement = null
-  let scrollPercentElement = null
-
   const adjustMenu = init => {
-    let hideMenuIndex = false
+    const getAllWidth = ele => Array.from(ele).reduce((width, i) => width + i.offsetWidth, 0)
 
     if (init) {
-      const blogInfoWidth = Array.from(document.querySelector('#blog-info > a').children).reduce((w, i) => w + i.offsetWidth, 0)
-      const menusWidth = Array.from(document.getElementById('menus').children).reduce((w, i) => w + i.offsetWidth, 0)
+      const blogInfoWidth = getAllWidth(document.querySelector('#blog-info > a').children)
+      const menusWidth = getAllWidth(document.getElementById('menus').children)
       headerContentWidth = blogInfoWidth + menusWidth
       $nav = document.getElementById('nav')
     }
 
-    hideMenuIndex = window.innerWidth <= 768 || headerContentWidth > $nav.offsetWidth - 120
-
-    requestAnimationFrame(() => {
-      $nav.classList.toggle('hide-menu', hideMenuIndex)
-    })
+    const hideMenuIndex = window.innerWidth <= 768 || headerContentWidth > $nav.offsetWidth - 120
+    $nav.classList.toggle('hide-menu', hideMenuIndex)
   }
 
   // 初始化header
@@ -61,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
    * 代碼
    * 只適用於Hexo默認的代碼渲染
    */
-  const addHighlightTool = $article => {
+  const addHighlightTool = () => {
     const highLight = GLOBAL_CONFIG.highlight
     if (!highLight) return
 
@@ -71,8 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const isNotHighlightJs = plugin !== 'highlight.js'
     const isPrismjs = plugin === 'prismjs'
     const $figureHighlight = isNotHighlightJs
-      ? Array.from($article.querySelectorAll('code[class*="language-"]')).map(code => code.parentElement)
-      : $article.querySelectorAll('figure.highlight')
+      ? Array.from(document.querySelectorAll('code[class*="language-"]')).map(code => code.parentElement)
+      : document.querySelectorAll('figure.highlight')
 
     if (!((isShowTool || highlightHeightLimit) && $figureHighlight.length)) return
 
@@ -174,23 +167,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // 獲取隱藏狀態下元素的真實高度
     const getActualHeight = item => {
       if (item.offsetHeight > 0) return item.offsetHeight
+      const hiddenElements = new Map()
 
-      const clone = item.cloneNode(true)
+      const fix = () => {
+        let current = item
+        while (current !== document.body && current != null) {
+          if (window.getComputedStyle(current).display === 'none') {
+            hiddenElements.set(current, current.getAttribute('style') || '')
+          }
+          current = current.parentNode
+        }
 
-      clone.style.cssText = `
-        position: absolute !important;
-        visibility: hidden !important;
-        display: block !important;
-        left: 0 !important;
-        top: 0 !important;
-        pointer-events: none !important;
-        z-index: -1 !important;
-        margin: 0 !important;
-      `
+        const style = 'visibility: hidden !important; display: block !important;'
+        hiddenElements.forEach((originalStyle, elem) => {
+          elem.setAttribute('style', originalStyle ? originalStyle + ';' + style : style)
+        })
+      }
 
-      item.parentNode.insertBefore(clone, item)
-      const height = clone.offsetHeight
-      clone.remove()
+      const restore = () => {
+        hiddenElements.forEach((originalStyle, elem) => {
+          if (originalStyle === '') elem.removeAttribute('style')
+          else elem.setAttribute('style', originalStyle)
+        })
+      }
+
+      fix()
+      const height = item.offsetHeight
+      restore()
       return height
     }
 
@@ -241,9 +244,9 @@ document.addEventListener('DOMContentLoaded', () => {
   /**
    * PhotoFigcaption
    */
-  const addPhotoFigcaption = $article => {
+  const addPhotoFigcaption = () => {
     if (!GLOBAL_CONFIG.isPhotoFigcaption) return
-    $article.querySelectorAll('img').forEach(item => {
+    document.querySelectorAll('#article-container img').forEach(item => {
       const altValue = item.title || item.alt
       if (!altValue) return
       const ele = document.createElement('div')
@@ -256,8 +259,8 @@ document.addEventListener('DOMContentLoaded', () => {
   /**
    * Lightbox
    */
-  const runLightbox = $article => {
-    btf.loadLightbox($article.querySelectorAll('img:not(.no-lightbox)'))
+  const runLightbox = () => {
+    btf.loadLightbox(document.querySelectorAll('#article-container img:not(.no-lightbox)'))
   }
 
   /**
@@ -267,23 +270,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const fetchUrl = async url => {
     try {
       const response = await fetch(url)
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
       return await response.json()
     } catch (error) {
       console.error('Failed to fetch URL:', error)
-      throw error
+      return []
     }
   }
 
   const runJustifiedGallery = (container, data, config) => {
-    const { isButton, tabs } = config
-    const limit = Math.max(1, Number(config.limit) || 20)
-    const firstLimit = Math.max(1, Number(config.firstLimit) || limit)
+    const { isButton, limit, firstLimit, tabs } = config
 
     const dataLength = data.length
-    const maxGroupKey = dataLength
-      ? Math.ceil(Math.max(0, dataLength - firstLimit) / limit) + 1
-      : 0
+    const maxGroupKey = Math.ceil((dataLength - firstLimit) / limit + 1)
 
     // Gallery configuration
     const igConfig = {
@@ -300,19 +298,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let isLayoutHidden = false
 
     // Utility functions
-    const sanitizeString = str => String(str ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
+    const sanitizeString = str => (str && str.replace(/"/g, '&quot;')) || ''
 
     const createImageItem = item => {
       const alt = item.alt ? `alt="${sanitizeString(item.alt)}"` : ''
       const title = item.title ? `title="${sanitizeString(item.title)}"` : ''
-      const url = item.url ? sanitizeString(item.url) : ''
       return `<div class="item">
-        <img src="${url}" data-grid-maintained-target="true" ${alt} ${title} />
+        <img src="${item.url}" data-grid-maintained-target="true" ${alt} ${title} />
       </div>`
     }
 
@@ -381,13 +373,11 @@ document.addEventListener('DOMContentLoaded', () => {
     btf.setLoading.add(container)
     ig.on('renderComplete', handleRenderComplete)
 
-    if (isButton && dataLength) {
+    if (isButton) {
       appendItems(1, firstLimit, true)
-    } else if (dataLength) {
+    } else {
       ig.on('requestAppend', handleRequestAppend)
       ig.renderItems()
-    } else {
-      btf.setLoading.remove(container)
     }
 
     btf.addGlobalFn('pjaxSendOnce', () => ig.destroy())
@@ -410,11 +400,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = element.firstElementChild
         const content = container.textContent
         container.textContent = ''
+        element.classList.add('loaded')
+
         try {
           const data = element.getAttribute('data-type') === 'url' ? await fetchUrl(content) : JSON.parse(content)
-          if (!Array.isArray(data)) throw new TypeError('Gallery data must be an array')
           runJustifiedGallery(container, data, config)
-          element.classList.add('loaded')
         } catch (error) {
           console.error('Gallery data parsing failed:', error)
         }
@@ -434,11 +424,11 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   const rightsideScrollPercent = currentTop => {
     const scrollPercent = btf.getScrollPercent(currentTop, document.body)
+    const goUpElement = document.getElementById('go-up')
 
-    if (!goUpElement || !scrollPercentElement) return
     if (scrollPercent < 95) {
       goUpElement.classList.add('show-percent')
-      scrollPercentElement.textContent = scrollPercent
+      goUpElement.querySelector('.scroll-percent').textContent = scrollPercent
     } else {
       goUpElement.classList.remove('show-percent')
     }
@@ -449,19 +439,23 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   const scrollFn = () => {
     const $rightside = document.getElementById('rightside')
+    const innerHeight = window.innerHeight + 56
     let initTop = 0
     const $header = document.getElementById('page-header')
-    const isChatBtn = typeof window.chatBtn !== 'undefined'
+    const isChatBtn = typeof chatBtn !== 'undefined'
     const isShowPercent = GLOBAL_CONFIG.percent.rightside
 
     // 檢查文檔高度是否小於視窗高度
     const checkDocumentHeight = () => {
-      if (document.body.scrollHeight <= window.innerHeight + 56) {
+      if (document.body.scrollHeight <= innerHeight) {
         $rightside.classList.add('rightside-show')
         return true
       }
       return false
     }
+
+    // 如果文檔高度小於視窗高度,直接返回
+    if (checkDocumentHeight()) return
 
     // find the scroll direction
     const scrollDirection = currentTop => {
@@ -471,9 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let flag = ''
-    const scrollTask = btf.rafThrottle(() => {
-      if (checkDocumentHeight()) return
-
+    const scrollTask = btf.throttle(() => {
       const currentTop = window.scrollY || document.documentElement.scrollTop
       const isDown = scrollDirection(currentTop)
       if (currentTop > 56) {
@@ -504,18 +496,19 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       isShowPercent && rightsideScrollPercent(currentTop)
-    })
+      checkDocumentHeight()
+    }, 300)
 
-    checkDocumentHeight()
     btf.addEventListenerPjax(window, 'scroll', scrollTask, { passive: true })
   }
 
   /**
-  * toc, anchor
+  * toc,anchor
   */
-  const scrollFnToDo = $article => {
+  const scrollFnToDo = () => {
     const isToc = GLOBAL_CONFIG_SITE.isToc
     const isAnchor = GLOBAL_CONFIG.isAnchor
+    const $article = document.getElementById('article-container')
 
     if (!($article && (isToc || isAnchor))) return
 
@@ -528,6 +521,7 @@ document.addEventListener('DOMContentLoaded', () => {
       $tocPercentage = $cardTocLayout.querySelector('.toc-percentage')
       isExpand = $cardToc.classList.contains('is-expand')
 
+      // toc元素點擊
       const tocItemClickFn = e => {
         const target = e.target.closest('.toc-link')
         if (!target) return
@@ -554,105 +548,94 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      // 處理 hexo-blog-encrypt 事件
       $cardToc.style.display = 'block'
     }
 
+    // find head position & add active class
     const $articleList = $article.querySelectorAll('h1,h2,h3,h4,h5,h6')
-    if (!$articleList.length) return
+    let detectItem = ''
 
-    let activeTocItem = null
-    let activeParentItems = []
+    // Optimization: Cache header positions
+    let headerList = []
+    const updateHeaderPositions = () => {
+      headerList = Array.from($articleList).map(ele => ({
+        ele,
+        top: btf.getEleTop(ele),
+        id: ele.id
+      }))
+    }
 
-    const updateTocUI = currentId => {
-      const encodedAnchor = currentId ? '#' + encodeURI(decodeURI(currentId)) : ''
-      if (isAnchor) btf.updateAnchor(encodedAnchor)
+    updateHeaderPositions()
+    btf.addEventListenerPjax(window, 'resize', btf.throttle(updateHeaderPositions, 200))
 
-      if (!isToc) return
+    const findHeadPosition = top => {
+      if (top === 0) return false
 
-      if (activeTocItem) activeTocItem.classList.remove('active')
-      activeParentItems.forEach(i => i.classList.remove('active'))
-      activeParentItems = []
+      let currentId = ''
+      let currentIndex = ''
 
-      if (!currentId) {
-        activeTocItem = null
-        return
+      for (let i = 0; i < headerList.length; i++) {
+        const item = headerList[i]
+        if (top > item.top - 80) {
+          currentId = item.id ? '#' + encodeURI(item.id) : ''
+          currentIndex = i
+        } else {
+          break
+        }
       }
 
-      const targetLink = Array.from($tocLink).find(link => {
-        const href = link.getAttribute('href')
-        if (!href) return false
-        return decodeURI(href).replace('#', '') === decodeURI(currentId)
-      })
+      if (detectItem === currentIndex) return
 
-      if (!targetLink) return
+      if (isAnchor) btf.updateAnchor(currentId)
 
-      targetLink.classList.add('active')
-      activeTocItem = targetLink
-      setTimeout(() => autoScrollToc(targetLink), 0)
+      detectItem = currentIndex
 
-      if (!isExpand) {
-        let parent = targetLink.parentNode
-        while (!parent.matches('.toc')) {
-          if (parent.matches('li')) {
-            parent.classList.add('active')
-            activeParentItems.push(parent)
+      if (isToc) {
+        $cardToc.querySelectorAll('.active').forEach(i => i.classList.remove('active'))
+
+        if (currentId) {
+          const currentActive = $tocLink[currentIndex]
+          currentActive.classList.add('active')
+
+          setTimeout(() => autoScrollToc(currentActive), 0)
+
+          if (!isExpand) {
+            let parent = currentActive.parentNode
+            while (!parent.matches('.toc')) {
+              if (parent.matches('li')) parent.classList.add('active')
+              parent = parent.parentNode
+            }
           }
-          parent = parent.parentNode
         }
       }
     }
 
-    const observerOptions = {
-      root: null,
-      rootMargin: '-60px 0px -80% 0px',
-      threshold: 0
-    }
-
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          updateTocUI(entry.target.id)
-        }
-      })
-    }, observerOptions)
-
-    $articleList.forEach(ele => observer.observe(ele))
-
-    const scrollHandler = btf.rafThrottle(() => {
+    // main of scroll
+    const tocScrollFn = btf.throttle(() => {
       const currentTop = window.scrollY || document.documentElement.scrollTop
-
       if (isToc && GLOBAL_CONFIG.percent.toc) {
         $tocPercentage.textContent = btf.getScrollPercent(currentTop, $article)
       }
+      findHeadPosition(currentTop)
+    }, 100)
 
-      if (currentTop === 0) {
-        updateTocUI('')
-      } else if (currentTop + window.innerHeight >= document.documentElement.scrollHeight - 10) {
-        const lastHeader = $articleList[$articleList.length - 1]
-        updateTocUI(lastHeader.id)
-      }
-    })
-
-    btf.addEventListenerPjax(window, 'scroll', scrollHandler, { passive: true })
-
-    btf.addGlobalFn('pjaxSendOnce', () => {
-      observer.disconnect()
-    })
+    btf.addEventListenerPjax(window, 'scroll', tocScrollFn, { passive: true })
   }
 
   const handleThemeChange = mode => {
     const globalFn = window.globalFn || {}
-    const themeChange = globalFn.themeChange
-    if (!themeChange) return
+    const themeChange = globalFn.themeChange || {}
+    if (!themeChange) {
+      return
+    }
 
     Object.keys(themeChange).forEach(key => {
-      const fn = themeChange[key]
-      if (typeof fn !== 'function') return
-
+      const themeChangeFn = themeChange[key]
       if (['disqus', 'disqusjs'].includes(key)) {
-        setTimeout(() => fn(mode), 300)
+        setTimeout(() => themeChangeFn(mode), 300)
       } else {
-        fn(mode)
+        themeChangeFn(mode)
       }
     })
   }
@@ -814,8 +797,8 @@ document.addEventListener('DOMContentLoaded', () => {
   /**
    * table overflow
    */
-  const addTableWrap = $article => {
-    const $table = $article.querySelectorAll('table')
+  const addTableWrap = () => {
+    const $table = document.querySelectorAll('#article-container table')
     if (!$table.length) return
 
     $table.forEach(item => {
@@ -825,54 +808,52 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   }
 
-  const clickFnOfTagHide = $article => {
-    const hideButtons = $article.querySelectorAll('.hide-button')
+  /**
+   * tag-hide
+   */
+  const clickFnOfTagHide = () => {
+    const hideButtons = document.querySelectorAll('#article-container .hide-button')
     if (!hideButtons.length) return
-
-    const handleClickOfTagHide = e => {
-      const button = e.target.closest('.hide-button')
-      if (!button) return
-      button.classList.add('open')
-      addJustifiedGallery(button.nextElementSibling.querySelectorAll('.gallery-container'))
-    }
-
-    btf.addEventListenerPjax($article, 'click', handleClickOfTagHide)
+    hideButtons.forEach(item => item.addEventListener('click', e => {
+      const currentTarget = e.currentTarget
+      currentTarget.classList.add('open')
+      addJustifiedGallery(currentTarget.nextElementSibling.querySelectorAll('.gallery-container'))
+    }, { once: true }))
   }
 
-  const tabsFn = $article => {
-    if (!$article.querySelector('.tabs')) return
+  const tabsFn = () => {
+    const navTabsElements = document.querySelectorAll('#article-container .tabs')
+    if (!navTabsElements.length) return
 
     const setActiveClass = (elements, activeIndex) => {
-      elements.forEach((el, index) => el.classList.toggle('active', index === activeIndex))
+      elements.forEach((el, index) => {
+        el.classList.toggle('active', index === activeIndex)
+      })
     }
 
-    const handleClick = e => {
-      const tabsRoot = e.target.closest('.tabs')
-      if (!tabsRoot) return
+    const handleNavClick = e => {
+      const target = e.target.closest('button')
+      if (!target || target.classList.contains('active')) return
 
-      const navContainer = tabsRoot.firstElementChild
-      const toTopContainer = tabsRoot.lastElementChild
+      const navItems = [...e.currentTarget.children]
+      const tabContents = [...e.currentTarget.nextElementSibling.children]
+      const indexOfButton = navItems.indexOf(target)
+      setActiveClass(navItems, indexOfButton)
+      e.currentTarget.classList.remove('no-default')
+      setActiveClass(tabContents, indexOfButton)
+      addJustifiedGallery(tabContents[indexOfButton].querySelectorAll('.gallery-container'), true)
+    }
 
-      if (navContainer.contains(e.target)) {
-        const target = e.target.closest('button')
-        if (!target || target.classList.contains('active')) return
-
-        const navItems = [...navContainer.children]
-        const tabContents = [...navContainer.nextElementSibling.children]
-        const indexOfButton = navItems.indexOf(target)
-        setActiveClass(navItems, indexOfButton)
-        navContainer.classList.remove('no-default')
-        setActiveClass(tabContents, indexOfButton)
-        addJustifiedGallery(tabContents[indexOfButton].querySelectorAll('.gallery-container'), true)
-        return
-      }
-
-      if (toTopContainer.contains(e.target) && e.target.closest('button')) {
-        btf.scrollToDest(btf.getEleTop(tabsRoot), 300)
+    const handleToTopClick = tabElement => e => {
+      if (e.target.closest('button')) {
+        btf.scrollToDest(btf.getEleTop(tabElement), 300)
       }
     }
 
-    btf.addEventListenerPjax($article, 'click', handleClick)
+    navTabsElements.forEach(tabElement => {
+      btf.addEventListenerPjax(tabElement.firstElementChild, 'click', handleNavClick)
+      btf.addEventListenerPjax(tabElement.lastElementChild, 'click', handleToTopClick(tabElement))
+    })
   }
 
   const toggleCardCategory = () => {
@@ -938,13 +919,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const unRefreshFn = () => {
-    const resizeHandler = btf.rafThrottle(() => {
+    window.addEventListener('resize', () => {
       adjustMenu(false)
-      if (mobileSidebarOpen && btf.isHidden(document.getElementById('toggle-menu'))) {
-        sidebarFn.close()
-      }
+      mobileSidebarOpen && btf.isHidden(document.getElementById('toggle-menu')) && sidebarFn.close()
     })
-    window.addEventListener('resize', resizeHandler, { passive: true })
 
     const menuMask = document.getElementById('menu-mask')
     menuMask && menuMask.addEventListener('click', () => { sidebarFn.close() })
@@ -962,24 +940,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const forPostFn = () => {
-    const $article = document.getElementById('article-container')
-    if (!$article || $article.querySelector('.hbe-container')) return
-
-    addHighlightTool($article)
-    addPhotoFigcaption($article)
-    addJustifiedGallery($article.querySelectorAll('.gallery-container'))
-    runLightbox($article)
-    scrollFnToDo($article)
-    addTableWrap($article)
-    clickFnOfTagHide($article)
-    tabsFn($article)
+    addHighlightTool()
+    addPhotoFigcaption()
+    addJustifiedGallery(document.querySelectorAll('#article-container .gallery-container'))
+    runLightbox()
+    scrollFnToDo()
+    addTableWrap()
+    clickFnOfTagHide()
+    tabsFn()
   }
 
   const refreshFn = () => {
     initAdjust()
-    goUpElement = document.getElementById('go-up')
-    scrollPercentElement = goUpElement?.querySelector('.scroll-percent')
-
     justifiedIndexPostUI()
 
     if (GLOBAL_CONFIG_SITE.pageType === 'post') {
@@ -995,11 +967,8 @@ document.addEventListener('DOMContentLoaded', () => {
     GLOBAL_CONFIG_SITE.pageType === 'home' && scrollDownInIndex()
     scrollFn()
 
-    if (GLOBAL_CONFIG_SITE.pageType !== 'shuoshuo') {
-      forPostFn()
-      btf.switchComments(document)
-    }
-
+    forPostFn()
+    GLOBAL_CONFIG_SITE.pageType !== 'shuoshuo' && btf.switchComments(document)
     openMobileMenu()
   }
 
@@ -1015,6 +984,4 @@ document.addEventListener('DOMContentLoaded', () => {
       fn()
     })
   })
-
-  document.addEventListener('shuoshuo:rendered', forPostFn)
 })

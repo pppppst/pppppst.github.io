@@ -1,0 +1,28 @@
+name: Submit URLs to Baidu
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  submit-baidu:
+    runs-on: ubuntu-latest
+    if: github.repository == 'pppppst/pppppst.github.io' && vars.ENABLE_SEARCH_PING == 'true'
+    permissions:
+      contents: read
+    env:
+      SITE_URL: https://pppppst.github.io
+      BAIDU_SITE: ${{ secrets.BAIDU_SITE }}
+      BAIDU_TOKEN: ${{ secrets.BAIDU_TOKEN }}
+    steps:
+      - name: Submit homepage to Baidu (optional)
+        run: |
+          if [ -z "$BAIDU_SITE" ] || [ -z "$BAIDU_TOKEN" ]; then
+            echo "Skip Baidu submit: BAIDU_SITE or BAIDU_TOKEN is empty"
+            exit 0
+          fi
+
+          response=$(curl --fail-with-body -sS --max-time 20 -H "Content-Type: text/plain" --data-binary "${SITE_URL}/" "https://data.zz.baidu.com/urls?site=${BAIDU_SITE}&token=${BAIDU_TOKEN}")
+          echo "Baidu response: $response"
