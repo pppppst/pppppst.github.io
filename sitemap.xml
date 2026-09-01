@@ -1,25 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>https://pppppst.github.io/2026/09/01/blog-ready/</loc>
+    
+    <lastmod>2026-09-01</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
     <loc>https://pppppst.github.io/</loc>
-    
-    <lastmod>2026-09-01</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-
-  <url>
-    <loc>https://pppppst.github.io/2026/08/31/blog-ready/</loc>
-    
-    <lastmod>2026-09-01</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-
-  <url>
-    <loc>https://pppppst.github.io/link/</loc>
     
     <lastmod>2026-09-01</lastmod>
     
@@ -37,7 +28,16 @@
   </url>
 
   <url>
-    <loc>https://pppppst.github.io/about/</loc>
+    <loc>https://pppppst.github.io/link/</loc>
+    
+    <lastmod>2026-09-01</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
+    <loc>https://pppppst.github.io/categories/</loc>
     
     <lastmod>2026-08-31</lastmod>
     
@@ -55,7 +55,7 @@
   </url>
 
   <url>
-    <loc>https://pppppst.github.io/categories/</loc>
+    <loc>https://pppppst.github.io/about/</loc>
     
     <lastmod>2026-08-31</lastmod>
     

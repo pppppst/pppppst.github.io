@@ -170,7 +170,7 @@
   #page-header.full_page {
     background-image:
       linear-gradient(rgba(20, 30, 50, 0.25), rgba(20, 30, 50, 0.25)),
-      url('/img/home-img.png') !important;
+      url('/img/home-img.webp') !important;
     background-size: cover;
     background-position: center;
   }
@@ -193,7 +193,7 @@
   #page-header.not-home-page {
     background-image:
       linear-gradient(rgba(20, 30, 50, 0.25), rgba(20, 30, 50, 0.25)),
-      url('/img/home-img.png') !important;
+      url('/img/home-img.webp') !important;
     background-size: cover;
     background-position: center;
   }
@@ -220,6 +220,7 @@
   }
 
   #body-wrap.type-home,
+  #body-wrap.post,
   #body-wrap.type-archive,
   #body-wrap.type-categories,
   #body-wrap.type-tags,
@@ -228,7 +229,7 @@
     min-height: 100vh;
     background-image:
       linear-gradient(rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.18)),
-      url('/img/home-img.png');
+      url('/img/home-img.webp');
     background-attachment: fixed;
     background-position: center;
     background-repeat: no-repeat;
@@ -237,6 +238,11 @@
 
   #body-wrap.type-home #page-header.full_page,
   #body-wrap.type-home #page-header.full_page:before {
+    background: transparent !important;
+  }
+
+  #body-wrap.post #page-header.post-bg,
+  #body-wrap.post #page-header.post-bg:before {
     background: transparent !important;
   }
 
@@ -313,7 +319,7 @@
   [data-theme='dark'] #page-header.not-home-page {
     background-image:
       linear-gradient(rgba(6, 12, 24, 0.5), rgba(6, 12, 24, 0.5)),
-      url('/img/home-img.png') !important;
+      url('/img/home-img.webp') !important;
   }
 
   [data-theme='dark'] #page-header.not-top-img {
@@ -338,6 +344,7 @@
   }
 
   [data-theme='dark'] #body-wrap.type-home,
+  [data-theme='dark'] #body-wrap.post,
   [data-theme='dark'] #body-wrap.type-archive,
   [data-theme='dark'] #body-wrap.type-categories,
   [data-theme='dark'] #body-wrap.type-tags,
@@ -345,7 +352,7 @@
   [data-theme='dark'] #body-wrap.type-shuoshuo {
     background-image:
       linear-gradient(rgba(6, 12, 24, 0.45), rgba(6, 12, 24, 0.45)),
-      url('/img/home-img.png');
+      url('/img/home-img.webp');
   }
 
   [data-theme='dark'] #page-header.full_page #site-title,
@@ -436,6 +443,7 @@
   }
 
   #body-wrap.type-home #page-header.nav-fixed #nav,
+  #body-wrap.post #page-header.nav-fixed #nav,
   #body-wrap.type-archive #page-header.nav-fixed #nav,
   #body-wrap.type-categories #page-header.nav-fixed #nav,
   #body-wrap.type-tags #page-header.nav-fixed #nav,
@@ -448,12 +456,14 @@
   }
 
   #body-wrap.type-home #footer,
+  #body-wrap.post #footer,
   #body-wrap.type-archive #footer,
   #body-wrap.type-categories #footer,
   #body-wrap.type-tags #footer,
   #body-wrap.type-link #footer,
   #body-wrap.type-shuoshuo #footer,
   #body-wrap.type-home #footer::before,
+  #body-wrap.post #footer::before,
   #body-wrap.type-archive #footer::before,
   #body-wrap.type-categories #footer::before,
   #body-wrap.type-tags #footer::before,
@@ -486,6 +496,15 @@
   #body-wrap.type-home #page-header.full_page #site-title,
   #body-wrap.type-home #page-header.full_page #site-subtitle,
   #body-wrap.type-home #page-header.full_page #subtitle {
+    color: #000000 !important;
+    text-shadow: 0 1px 10px rgba(255, 255, 255, 0.55);
+  }
+
+  #body-wrap.type-archive #page-header.not-home-page #site-title,
+  #body-wrap.type-categories #page-header.not-home-page #site-title,
+  #body-wrap.type-tags #page-header.not-home-page #site-title,
+  #body-wrap.type-link #page-header.not-home-page #site-title,
+  #body-wrap.type-shuoshuo #page-header.not-home-page #site-title {
     color: #000000 !important;
     text-shadow: 0 1px 10px rgba(255, 255, 255, 0.55);
   }
@@ -538,7 +557,7 @@
     btf.addGlobalFn('pjaxSend', preloader.initLoading, 'preloader_init')
     btf.addGlobalFn('pjaxComplete', preloader.endLoading, 'preloader_end')
   }
-})()</script><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/avatar2.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">1</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">1</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/blog/"><i class="fa-fw fas fa-feather-alt"></i><span> 博客</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/memos/"><i class="fa-fw fas fa-comment-dots"></i><span> 碎碎念</span></a></div></div></div></div><div class="page type-link" id="body-wrap"><header class="not-home-page fixed" id="page-header" style="background-image: url(/img/home-img.png);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">Pst's Blog</span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/blog/"><i class="fa-fw fas fa-feather-alt"></i><span> 博客</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/memos/"><i class="fa-fw fas fa-comment-dots"></i><span> 碎碎念</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="page-site-info"><h1 id="site-title">友链</h1></div></header><main class="layout hide-aside" id="content-inner"><div id="page"><div class="container" id="article-container"><div class="flink"><p>欢迎交流与互访。启用 Giscus 后，可以在评论区留言申请交换友链。</p>
+})()</script><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/avatar2.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">1</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">1</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/blog/"><i class="fa-fw fas fa-feather-alt"></i><span> 博客</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/memos/"><i class="fa-fw fas fa-comment-dots"></i><span> 碎碎念</span></a></div></div></div></div><div class="page type-link" id="body-wrap"><header class="not-home-page fixed" id="page-header" style="background-image: url(/img/home-img.webp);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">Pst's Blog</span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/blog/"><i class="fa-fw fas fa-feather-alt"></i><span> 博客</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/memos/"><i class="fa-fw fas fa-comment-dots"></i><span> 碎碎念</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="page-site-info"><h1 id="site-title">友链</h1></div></header><main class="layout hide-aside" id="content-inner"><div id="page"><div class="container" id="article-container"><div class="flink"><p>欢迎交流与互访。启用 Giscus 后，可以在评论区留言申请交换友链。</p>
 <h2 id="友链"><a class="markdownIt-Anchor" href="#友链"></a> 友链</h2>
 <p>当前还没有添加友链。</p>
 <h2 id="本站信息"><a class="markdownIt-Anchor" href="#本站信息"></a> 本站信息</h2>
