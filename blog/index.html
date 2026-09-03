@@ -621,7 +621,7 @@ btf.addGlobalFn('pjaxSendOnce', () => {
   typedJSFn.processSubtitle()
 }
 typedJSFn.run(subtitleType)</script></div><script src="/js/fix-link-target.js"></script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
-  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
 
   window.pjax = new Pjax({
     elements: 'a:not([target="_blank"]):not([href="/memos/"]):not([href="/memos/index.html"])',
