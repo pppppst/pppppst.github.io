@@ -20,51 +20,92 @@
     "pppppst.github.io"
   ],
   "url": "https://pppppst.github.io/"
-}</script><link rel="shortcut icon" href="/img/avatar2.png"><link rel="canonical" href="https://pppppst.github.io/blog/"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
+}</script><link rel="shortcut icon" href="/img/avatar2.png"><link rel="canonical" href="https://pppppst.github.io/blog/"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=1.1.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.3.1/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.14/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>
     (() => {
       
     const saveToLocal = {
       set: (key, value, ttl) => {
-        if (!ttl) return
-        const expiry = Date.now() + ttl * 86400000
-        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+        const data = { value }
+
+        if (ttl != null) {
+          data.expiry = Date.now() + ttl * 86400000
+        }
+
+        localStorage.setItem(key, JSON.stringify(data))
       },
       get: key => {
         const itemStr = localStorage.getItem(key)
-        if (!itemStr) return undefined
-        const { value, expiry } = JSON.parse(itemStr)
-        if (Date.now() > expiry) {
+        if (!itemStr) return
+
+        try {
+          const data = JSON.parse(itemStr)
+
+          if (data.expiry && Date.now() > data.expiry) {
+            localStorage.removeItem(key)
+            return
+          }
+
+          return data.value
+        } catch {
           localStorage.removeItem(key)
-          return undefined
         }
-        return value
       }
     }
 
+    const scriptCache = new Map()
+    const cssCache = new Map()
     window.btf = {
       saveToLocal,
-      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
-        const script = document.createElement('script')
-        script.src = url
-        script.async = true
-        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
-        script.onload = script.onreadystatechange = () => {
-          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+      getScript: (url, attr = {}) => {
+        if (scriptCache.has(url)) {
+          return scriptCache.get(url)
         }
-        script.onerror = reject
-        document.head.appendChild(script)
-      }),
-      getCSS: (url, id) => new Promise((resolve, reject) => {
-        const link = document.createElement('link')
-        link.rel = 'stylesheet'
-        link.href = url
-        if (id) link.id = id
-        link.onload = link.onreadystatechange = () => {
-          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+
+        const promise = new Promise((resolve, reject) => {
+          const script = document.createElement('script')
+
+          script.src = url
+          script.async = true
+
+          for (const key in attr) {
+            script.setAttribute(key, attr[key])
+          }
+
+          script.onload = resolve
+          script.onerror = reject
+
+          document.head.appendChild(script)
+        })
+
+        scriptCache.set(url, promise)
+
+        return promise
+      },
+      getCSS: (url, id) => {
+        if (cssCache.has(url)) {
+          return cssCache.get(url)
         }
-        link.onerror = reject
-        document.head.appendChild(link)
-      }),
+
+        const promise = new Promise((resolve, reject) => {
+          const link = document.createElement('link')
+
+          link.rel = 'stylesheet'
+          link.href = url
+
+          if (id) {
+            link.id = id
+          }
+
+          link.onload = resolve
+          link.onerror = reject
+
+          document.head.appendChild(link)
+        })
+
+        cssCache.set(url, promise)
+
+        return promise
+      },
       addGlobalFn: (key, fn, name = false, parent = window) => {
         if (!true && key.startsWith('pjax')) return
         const globalFn = parent.globalFn || {}
@@ -75,16 +116,17 @@
     }
   
       
+      const metaThemeColor = document.querySelector('meta[name="theme-color"]')
       const activateDarkMode = () => {
-        document.documentElement.setAttribute('data-theme', 'dark')
-        if (document.querySelector('meta[name="theme-color"]') !== null) {
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        document.documentElement.dataset.theme = 'dark'
+        if (metaThemeColor !== null) {
+          metaThemeColor.setAttribute('content', '#0d0d0d')
         }
       }
       const activateLightMode = () => {
-        document.documentElement.setAttribute('data-theme', 'light')
-        if (document.querySelector('meta[name="theme-color"]') !== null) {
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        document.documentElement.dataset.theme = 'light'
+        if (metaThemeColor !== null) {
+          metaThemeColor.setAttribute('content', '#ffffff')
         }
       }
 
@@ -101,10 +143,15 @@
             else if (mediaQueryDark.matches) activateDarkMode()
             else {
               const hour = new Date().getHours()
-              const isNight = hour <= 6 || hour >= 18
+              const start = 6
+              const end = 18
+              const isNight =
+                start < end
+                    ? hour < start || hour >= end
+                    : hour >= start || hour < end
               isNight ? activateDarkMode() : activateLightMode()
             }
-            mediaQueryDark.addEventListener('change', () => {
+            mediaQueryDark.addEventListener('change', e => {
               if (saveToLocal.get('theme') === undefined) {
                 e.matches ? activateDarkMode() : activateLightMode()
               }
@@ -585,7 +632,7 @@
     btf.addGlobalFn('pjaxSend', preloader.initLoading, 'preloader_init')
     btf.addGlobalFn('pjaxComplete', preloader.endLoading, 'preloader_end')
   }
-})()</script><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/avatar2.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">2</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">2</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/blog/"><i class="fa-fw fas fa-feather-alt"></i><span> 博客</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/memos/"><i class="fa-fw fas fa-comment-dots"></i><span> 碎碎念</span></a></div></div></div></div><div class="page type-home" id="body-wrap"><header class="full_page fixed" id="page-header" style="background-image: url(/img/home-img.webp);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">Pst's Blog</span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/blog/"><i class="fa-fw fas fa-feather-alt"></i><span> 博客</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/memos/"><i class="fa-fw fas fa-comment-dots"></i><span> 碎碎念</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="site-info"><h1 id="site-title">Pst's Blog</h1><div id="site-subtitle"><span id="subtitle"></span></div><div id="site_social_icons"><a class="social-icon" href="https://github.com/pppppst" target="_blank" title="GitHub"><i class="fab fa-github" style="color: #24292f;"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss" style="color: #ff6600;"></i></a></div></div><div id="scroll-down"><i class="fas fa-angle-down scroll-down-effects"></i></div></header><main class="layout hide-aside" id="content-inner"><div class="recent-posts nc" id="recent-posts"><div class="recent-post-items"><div class="recent-post-item recent-post-memo"><div class="recent-post-info no-cover"><a class="article-title" href="/memos/">最新的碎碎念</a><div class="article-meta-wrap"><span class="post-meta-date"><i class="far fa-calendar-alt"></i><time class="post-meta-date-created" datetime="2026-09-02T20:23:00.000Z" title="发表于 2026-09-03 04:23:00">2026-09-03</time></span><span class="article-meta"><span class="article-meta-separator">|</span><i class="fas fa-comment-dots"></i><a class="article-meta__tags" href="/memos/"> 查看全部碎碎念 →</a></span></div><div class="content">天气之子 最近项目上不太顺利，生活上也有点难说，但天气似乎还是眷顾了我。 周一下午从家拖着行李箱回到了学校，到达宿舍没几分钟后，窗外下起了大雨。呼，躲过一劫。 昨天傍晚肉眼看着天气较晴，但刚从学院大楼出来打算去跑步时，发现下着很小的雨，不仅…</div></div></div><div class="recent-post-item"><div class="recent-post-info no-cover"><a class="article-title" href="/2026/09/20/%E7%94%9F%E5%91%BD%E5%9C%A8%E4%BA%8E%E8%BF%90%E5%8A%A8%EF%BC%8C%E5%8F%97%E4%BC%A4%E5%9C%A8%E4%BA%8E%E8%BF%90%E5%8A%A8/" title="生命在于运动，受伤在于运动">生命在于运动，受伤在于运动</a><div class="article-meta-wrap"><span class="post-meta-date"><i class="far fa-calendar-alt"></i><span class="article-meta-label">发表于</span><time datetime="2026-09-20T13:31:43.014Z" title="发表于 2026-09-20 21:31:43">2026-09-20</time></span><span class="article-meta"><span class="article-meta-separator">|</span><i class="fas fa-inbox"></i><a class="article-meta__categories" href="/categories/%E5%85%AC%E5%91%8A/">公告</a></span></div><div class="content">​	最近大腿（又）拉伤了，在左腿单腿受力困难、跑跳更是不用想的现在，我着实是对我自己的运动水平和能力产生了一点怀疑。 ​	回忆一下最初是怎么受伤的：我以前在立定跳远上一直没有悟道，总是甚至跳不过自己的身高，但在大一体侧期间常常晚上研究B站立定跳远教学、跟朋友进行立定跳远练习，在体育课中测出了1.92m的成绩，当时简直想把1.92m写在我的脑门上。在去年体测中，我却又有点找不到感觉了，可能是那会连跑步也少、立定跳远也好不到哪去。在某一次立定跳远的落地时，突然感觉到左大腿开始抽痛。在那之后的几天内走路也有些一瘸一拐，进行一些类似下蹲的动作时左大腿会抽痛。不过校医院给出了非常乐观的判断：“很多人都是这样的，过两周就好了。”于是我就没再怎么搭理我大腿的不适。在之后很长时间里，我平时走路、跑步、游泳基本没有再感觉到大腿有什么反应，但在一些非常需要爆发力的时候仍会感觉到大腿的不适——甚至有一次听到了“嘣”似的仿佛什么东西断裂的声音——但仍然对日常影响不大，所以我仍然对它有点疏忽。 ​	这两周开学以来，不知道为什么又感觉到了频繁的左边腿部甚至到臀部的不适，过了几天臀部缓解了许多，但发现仍然无法...</div></div></div><div class="recent-post-item"><div class="recent-post-info no-cover"><a class="article-title" href="/2026/09/01/blog-ready/" title="Hello World">Hello World</a><div class="article-meta-wrap"><span class="post-meta-date"><i class="far fa-calendar-alt"></i><span class="article-meta-label">发表于</span><time datetime="2026-09-01T12:56:00.000Z" title="发表于 2026-09-01 20:56:00">2026-09-01</time></span><span class="article-meta"><span class="article-meta-separator">|</span><i class="fas fa-inbox"></i><a class="article-meta__categories" href="/categories/%E5%85%AC%E5%91%8A/">公告</a></span></div><div class="content">嗨！我是 PST ！ 这个博客用于记录科研实践、技术学习、阅读体验，以及重要的一环，生活。 目前主要关注具身智能、多智能体导航，对 RL 、 VLA 、World Model 感兴趣，会分享一些阶段性见解，做抛砖引玉之用。 生活上，是乒乓球较热情观众但实操小白，罗小黑狂热粉，爱看书影剧，最近在看《枪炮、病菌与钢铁》。 看了朋友的博客之后，思考应该在自己的博客页面放些什么话好。最近看到一句“风物长宜放眼量”，觉得很契合我当下的心态。我自认算好好生活活在当下的人，较少为短期事务焦虑（除了期末周），但在更大的尺度上其实十分渴望某个目标的实现。 于是，慢慢来吧。 一步一个脚印，风物长宜放眼量。 </div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By pppppst</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.4</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.9/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>window.typedJSFn = {
+})()</script><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-lazy-src="/img/avatar2.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">2</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">2</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/blog/"><i class="fa-fw fas fa-feather-alt"></i><span> 博客</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/memos/"><i class="fa-fw fas fa-comment-dots"></i><span> 碎碎念</span></a></div></div></div></div><div class="page type-home" id="body-wrap"><header class="full_page fixed" id="page-header" style="background-image: url(/img/home-img.webp);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">Pst's Blog</span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/blog/"><i class="fa-fw fas fa-feather-alt"></i><span> 博客</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/memos/"><i class="fa-fw fas fa-comment-dots"></i><span> 碎碎念</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="site-info"><h1 id="site-title">Pst's Blog</h1><div id="site-subtitle"><span id="subtitle"></span></div><div id="site_social_icons"><a class="social-icon" href="https://github.com/pppppst" target="_blank" title="GitHub"><i class="fab fa-github" style="color: #24292f;"></i></a><a class="social-icon" href="/atom.xml" target="_blank" title="RSS"><i class="fas fa-rss" style="color: #ff6600;"></i></a></div></div><div id="scroll-down"><i class="fas fa-angle-down scroll-down-effects"></i></div></header><main class="layout hide-aside" id="content-inner"><div class="recent-posts nc" id="recent-posts"><div class="recent-post-items"><div class="recent-post-item recent-post-memo"><div class="recent-post-info no-cover"><a class="article-title" href="/memos/">最新的碎碎念</a><div class="article-meta-wrap"><span class="post-meta-date"><i class="far fa-calendar-alt"></i><time class="post-meta-date-created" datetime="2026-09-02T20:23:00.000Z" title="发表于 2026-09-03 04:23:00">2026-09-03</time></span><span class="article-meta"><span class="article-meta-separator">|</span><i class="fas fa-comment-dots"></i><a class="article-meta__tags" href="/memos/"> 查看全部碎碎念 →</a></span></div><div class="content">天气之子 最近项目上不太顺利，生活上也有点难说，但天气似乎还是眷顾了我。 周一下午从家拖着行李箱回到了学校，到达宿舍没几分钟后，窗外下起了大雨。呼，躲过一劫。 昨天傍晚肉眼看着天气较晴，但刚从学院大楼出来打算去跑步时，发现下着很小的雨，不仅…</div></div></div><div class="recent-post-item"><div class="recent-post-info no-cover"><a class="article-title" href="/2026/09/23/%E7%94%9F%E5%91%BD%E5%9C%A8%E4%BA%8E%E8%BF%90%E5%8A%A8%EF%BC%8C%E5%8F%97%E4%BC%A4%E5%9C%A8%E4%BA%8E%E8%BF%90%E5%8A%A8/" title="生命在于运动，受伤在于运动">生命在于运动，受伤在于运动</a><div class="article-meta-wrap"><span class="post-meta-date"><i class="far fa-calendar-alt"></i><span class="article-meta-label">发表于</span><time datetime="2026-09-23T03:06:14.348Z" title="发表于 2026-09-23 11:06:14">2026-09-23</time></span><span class="article-meta"><span class="article-meta-separator">|</span><i class="fas fa-inbox"></i><a class="article-meta__categories" href="/categories/%E5%85%AC%E5%91%8A/">公告</a></span></div><div class="content">​	最近大腿（又）拉伤了，在左腿单腿受力困难、跑跳更是不用想的现在，我着实是对我自己的运动水平和能力产生了一点怀疑。 ​	回忆一下最初是怎么受伤的：我以前在立定跳远上一直没有悟道，总是甚至跳不过自己的身高，但在大一体侧期间常常晚上研究B站立定跳远教学、跟朋友进行立定跳远练习，在体育课中测出了1.92m的成绩，当时简直想把1.92m写在我的脑门上。在去年体测中，我却又有点找不到感觉了，可能是那会连跑步也少、立定跳远也好不到哪去。在某一次立定跳远的落地时，突然感觉到左大腿开始抽痛。在那之后的几天内走路也有些一瘸一拐，进行一些类似下蹲的动作时左大腿会抽痛。不过校医院给出了非常乐观的判断：“很多人都是这样的，过两周就好了。”于是我就没再怎么搭理我大腿的不适。在之后很长时间里，我平时走路、跑步、游泳基本没有再感觉到大腿有什么反应，但在一些非常需要爆发力的时候仍会感觉到大腿的不适——甚至有一次听到了“嘣”似的仿佛什么东西断裂的声音——但仍然对日常影响不大，所以我仍然对它有点疏忽。 ​	这两周开学以来，不知道为什么又感觉到了频繁的左边腿部甚至到臀部的不适，过了几天臀部缓解了许多，但发现仍然无法...</div></div></div><div class="recent-post-item"><div class="recent-post-info no-cover"><a class="article-title" href="/2026/09/01/blog-ready/" title="Hello World">Hello World</a><div class="article-meta-wrap"><span class="post-meta-date"><i class="far fa-calendar-alt"></i><span class="article-meta-label">发表于</span><time datetime="2026-09-01T12:56:00.000Z" title="发表于 2026-09-01 20:56:00">2026-09-01</time></span><span class="article-meta"><span class="article-meta-separator">|</span><i class="fas fa-inbox"></i><a class="article-meta__categories" href="/categories/%E5%85%AC%E5%91%8A/">公告</a></span></div><div class="content">嗨！我是 PST ！ 这个博客用于记录科研实践、技术学习、阅读体验，以及重要的一环，生活。 目前主要关注具身智能、多智能体导航，对 RL 、 VLA 、World Model 感兴趣，会分享一些阶段性见解，做抛砖引玉之用。 生活上，是乒乓球较热情观众但实操小白，罗小黑狂热粉，爱看书影剧，最近在看《枪炮、病菌与钢铁》。 看了朋友的博客之后，思考应该在自己的博客页面放些什么话好。最近看到一句“风物长宜放眼量”，觉得很契合我当下的心态。我自认算好好生活活在当下的人，较少为短期事务焦虑（除了期末周），但在更大的尺度上其实十分渴望某个目标的实现。 于是，慢慢来吧。 一步一个脚印，风物长宜放眼量。 </div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By pppppst</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/SpeechlessPanda/hexo-theme-panda">Panda 1.1.4</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=1.1.4"></script><script src="/js/main.js?v=1.1.4"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1.14/dist/fancybox/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.min.js" type="module"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>window.typedJSFn = {
   init: str => {
     window.typed = new Typed('#subtitle', Object.assign({
       strings: str,
@@ -638,7 +685,7 @@ typedJSFn.run(subtitleType)</script></div><script src="/js/fix-link-target.js"><
   const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
 
   window.pjax = new Pjax({
-    elements: 'a:not([target="_blank"]):not([href="/memos/"]):not([href="/memos/index.html"])',
+    elements: 'a:not([target="_blank"]):not([data-fancybox]):not([href="/memos/"]):not([href="/memos/index.html"])',
     selectors: pjaxSelectors,
     cacheBust: false,
     analytics: false,
@@ -671,8 +718,9 @@ typedJSFn.run(subtitleType)</script></div><script src="/js/fix-link-target.js"><
   document.addEventListener('pjax:complete', () => {
     btf.removeGlobalFnEvent('pjaxCompleteOnce')
     document.querySelectorAll('script[data-pjax]').forEach(item => {
+      if (!item.parentNode) return
       const newScript = document.createElement('script')
-      const content = item.text || item.textContent || item.innerHTML || ""
+      const content = item.text || item.textContent || ''
       Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
       newScript.appendChild(document.createTextNode(content))
       item.parentNode.replaceChild(newScript, item)
@@ -682,10 +730,13 @@ typedJSFn.run(subtitleType)</script></div><script src="/js/fix-link-target.js"><
   })
 
   document.addEventListener('pjax:error', e => {
-    if (e.request.status === 404) {
+    const responseURL = e.request && e.request.responseURL
+    if (e.request && e.request.status === 404) {
       false
         ? pjax.loadUrl('/404.html')
-        : window.location.href = e.request.responseURL
+        : responseURL && (window.location.href = responseURL)
+    } else if (responseURL) {
+      window.location.href = responseURL
     }
   })
-})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.4"></script></div></div></body></html>
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=1.1.4"></script></div></div></body></html>

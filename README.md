@@ -41,7 +41,7 @@ pnpm run verify
 ### 2. 评论与按需重建
 
 发布仓启用 Discussions、安装 Giscus App 并创建评论分类。在 [giscus.app](https://giscus.app/zh-CN)
-生成配置，把 `repo_id`、`category_id` 写入根目录 `_config.butterfly.yml`，再把同文件的
+生成配置，把 `repo_id`、`category_id` 写入根目录 `_config.panda.yml`，再把同文件的
 `comments.use` 改为 `Giscus`。未完成这一步时评论保持关闭。
 
 源码仓 `pppppst/pst-blog` 需要：
@@ -61,4 +61,6 @@ pnpm run verify
 
 ## 来源与许可
 
-站点框架基于 [SpeechlessPanda/blog-s-code](https://github.com/SpeechlessPanda/blog-s-code) 定制；未复制其文章、碎碎念、友链或个人资料。当前内置 Butterfly 5.5.4 快照的 `package.json` 与仓库内许可证文本均标明 Apache-2.0，相关许可文件已原样保留。
+站点框架使用 [hexo-theme-panda](https://github.com/SpeechlessPanda/hexo-theme-panda) 1.1.4，源码内置于 `themes/panda/`，基于上游提交 `a0a417139b44d4da4b90a3a54e465229618ae92f`。Panda 源自 Butterfly 5.7.0，Apache-2.0 许可证和 NOTICE 原样保留。未复制上游文章、碎碎念、友链或个人资料。
+
+站点文字和明暗背景配置统一放在 `_config.panda.yml`。本次迁移说明及后续更新注意事项见 [Panda 主题维护](docs/panda-theme.md)。
