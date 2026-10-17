@@ -61,6 +61,6 @@ pnpm run verify
 
 ## 来源与许可
 
-站点框架使用 [hexo-theme-panda](https://github.com/SpeechlessPanda/hexo-theme-panda) 1.1.4，源码内置于 `themes/panda/`，基于上游提交 `a0a417139b44d4da4b90a3a54e465229618ae92f`。Panda 源自 Butterfly 5.7.0，Apache-2.0 许可证和 NOTICE 原样保留。未复制上游文章、碎碎念、友链或个人资料。
+站点框架使用 [hexo-theme-panda](https://github.com/SpeechlessPanda/hexo-theme-panda) 1.1.6，源码内置于 `themes/panda/`，基于上游提交 `208dbaf83751f6760adc6afd5c588060c616f637`。Panda 源自 Butterfly 5.7.0，Apache-2.0 许可证和 NOTICE 原样保留。未复制上游文章、碎碎念、友链或个人资料。
 
 站点文字和明暗背景配置统一放在 `_config.panda.yml`。本次迁移说明及后续更新注意事项见 [Panda 主题维护](docs/panda-theme.md)。
